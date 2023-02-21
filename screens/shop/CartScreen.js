@@ -1,13 +1,23 @@
-import React, { useLayoutEffect } from "react";
-import { View, Text, StyleSheet, FlatList, Button } from "react-native";
+import React, { useState, useLayoutEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Button,
+  ActivityIndicator,
+} from "react-native";
 import { useSelector, useDispatch } from "react-redux";
 
+import Card from "../../components/UI/Card";
 import Colors from "../../constants/Colors";
 import CartItem from "../../components/shop/CartItem";
 import * as cartActions from "../../store/actions/cartActions";
 import * as orderActions from "../../store/actions/orderActions";
 
 function CartScreen({ navigation }) {
+  const [isLoading, setIsLoading] = useState(false);
+
   const cartTotalAmount = useSelector((state) => state.cart.totalAmount);
   const cartItems = useSelector((state) => {
     // just so that it returns an array and not an object
@@ -19,6 +29,7 @@ function CartScreen({ navigation }) {
         productPrice: state.cart.items[key].productPrice,
         quantity: state.cart.items[key].quantity,
         sum: state.cart.items[key].sum,
+        productPushToken: state.cart.items[key].pushToken,
       });
     }
 
@@ -35,28 +46,54 @@ function CartScreen({ navigation }) {
 
   const dispatch = useDispatch();
 
+  const sendOrderHandler = async () => {
+    setIsLoading(true);
+    await dispatch(orderActions.addOrder(cartItems, cartTotalAmount));
+    setIsLoading(false);
+  };
+
+  // const OrderButton = (props) => {
+  //   if (cartItems.length > 0) {
+  //     return (
+  //       <Button
+  //         color={Colors.accent}
+  //         title="Order Now"
+  //         onPress={sendOrderHandler}
+  //       />
+  //     );
+  //   } else {
+  //     return null;
+  //   }
+  // };
+  function OrderButton() {
+    if (cartItems.length > 0) {
+      return (
+        <Button
+          color={Colors.accent}
+          title="Order Now"
+          onPress={sendOrderHandler}
+        />
+      );
+    } else {
+      return null;
+    }
+  }
+
   return (
     <View style={styles.screen}>
-      <View style={styles.summary}>
+      <Card style={styles.summary}>
         <Text style={styles.summaryText}>
           Total:{" "}
           <Text style={styles.amount}>
-            $
-            {cartTotalAmount.toFixed(2) === "-0.00"
-              ? "0.00"
-              : cartTotalAmount.toFixed(2)}
+            ${Math.round(cartTotalAmount.toFixed(2) * 100) / 100}
           </Text>
         </Text>
-        {cartItems.length > 0 ? (
-          <Button
-            color={Colors.accent}
-            title="Order Now"
-            onPress={() => {
-              dispatch(orderActions.addOrder(cartItems, cartTotalAmount));
-            }}
-          />
-        ) : null}
-      </View>
+        {isLoading ? (
+          <ActivityIndicator size="small" color={Colors.primary} />
+        ) : (
+          <OrderButton />
+        )}
+      </Card>
       <FlatList
         data={cartItems}
         keyExtractor={(item) => item.productId}
@@ -65,6 +102,7 @@ function CartScreen({ navigation }) {
             quantity={itemData.item.quantity}
             title={itemData.item.productTitle}
             amount={itemData.item.sum}
+            deletable
             onRemove={() => {
               dispatch(cartActions.removeFromCart(itemData.item.productId));
             }}
@@ -73,7 +111,7 @@ function CartScreen({ navigation }) {
       />
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   screen: {
@@ -86,13 +124,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 20,
     padding: 10,
-    shadowColor: "black",
-    shadowOpacity: 0.26,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 5,
-    borderRadius: 10,
-    backgroundColor: "white",
   },
   summaryText: {
     fontFamily: "open-sans-bold",

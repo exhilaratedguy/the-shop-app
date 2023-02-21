@@ -1,5 +1,7 @@
 import { ADD_TO_CART, REMOVE_FROM_CART } from "../actions/cartActions";
 import CartItem from "../../models/cart-item";
+import { ADD_ORDER } from "../actions/orderActions";
+import { DELETE_PRODUCT } from "../actions/productsActions";
 
 const initialState = {
   items: {},
@@ -12,6 +14,7 @@ export default (state = initialState, action) => {
       const addedProduct = action.product;
       const prodPrice = addedProduct.price;
       const prodTitle = addedProduct.title;
+      const pushToken = addedProduct.pushToken;
 
       let updatedOrNewCartItem;
 
@@ -21,10 +24,17 @@ export default (state = initialState, action) => {
           state.items[addedProduct.id].quantity + 1,
           prodPrice,
           prodTitle,
+          pushToken,
           state.items[addedProduct.id].sum + prodPrice
         );
       } else {
-        updatedOrNewCartItem = new CartItem(1, prodPrice, prodTitle, prodPrice);
+        updatedOrNewCartItem = new CartItem(
+          1,
+          prodPrice,
+          prodTitle,
+          pushToken,
+          prodPrice
+        );
       }
       return {
         ...state,
@@ -61,8 +71,26 @@ export default (state = initialState, action) => {
       return {
         ...state,
         items: updatedCartItems,
-        totalAmount: state.totalAmount - selectedCartItem.productPrice
+        totalAmount: state.totalAmount - selectedCartItem.productPrice,
+      };
+    case ADD_ORDER:
+      // Clear the cart after placing an order
+      return initialState;
+    case DELETE_PRODUCT:
+      // If a product was deleted from the store by then owner then delete it from user's cart
+      if (!state.items[action.pid]) {
+        return state;
       }
+
+      const updatedItems = { ...state.items };
+      const itemTotal = state.items[action.pid].sum;
+      delete updatedItems[action.pid];
+
+      return {
+        ...state,
+        items: updatedItems,
+        totalAmount: state.totalAmount - itemTotal,
+      };
   }
   return state;
 };
